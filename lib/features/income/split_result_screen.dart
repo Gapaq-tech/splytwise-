@@ -32,9 +32,11 @@ class SplitResultScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(celebrated ? 'Goal unlocked' : 'Split complete',
-                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(
+                        fontSize: 32, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 6),
-                Text('${commit.source} · ${formatPesewas(commit.amountPesewas, currency: currency)}',
+                Text(
+                    '${commit.source} · ${formatPesewas(commit.amountPesewas, currency: currency)}',
                     style: const TextStyle(color: SplytPalette.mute)),
                 const SizedBox(height: 20),
                 Expanded(
@@ -47,25 +49,31 @@ class SplitResultScreen extends ConsumerWidget {
                             child: Row(
                               children: [
                                 GlyphBadge(
-                                  iconKey: byId[line.categoryId]?.icon ?? 'wallet',
-                                  color: Color(byId[line.categoryId]?.color ?? SplytPalette.mint.value),
+                                  iconKey:
+                                      byId[line.categoryId]?.icon ?? 'wallet',
+                                  color: Color(byId[line.categoryId]?.color ??
+                                      SplytPalette.mint.value),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         byId[line.categoryId]?.name ?? 'Bucket',
-                                        style: const TextStyle(fontWeight: FontWeight.w800),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w800),
                                       ),
                                       Text(formatPercent(line.percent),
-                                          style: const TextStyle(color: SplytPalette.mute)),
+                                          style: const TextStyle(
+                                              color: SplytPalette.mute)),
                                     ],
                                   ),
                                 ),
                                 MoneyText(
-                                  formatPesewas(line.amountPesewas, currency: currency),
+                                  formatPesewas(line.amountPesewas,
+                                      currency: currency),
                                   fontSize: 18,
                                 ),
                               ],
@@ -77,7 +85,8 @@ class SplitResultScreen extends ConsumerWidget {
                           color: SplytPalette.gold.withOpacity(0.16),
                           child: Text(
                             commit.completedGoalIds
-                                .map((id) => '${byId[id]?.name ?? 'A goal'} is fully funded. You did that.')
+                                .map((id) =>
+                                    '${byId[id]?.name ?? 'A goal'} is fully funded. You did that.')
                                 .join('\n'),
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
@@ -90,8 +99,8 @@ class SplitResultScreen extends ConsumerWidget {
                   height: 56,
                   child: FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: SplytPalette.mint,
-                      foregroundColor: SplytPalette.deep,
+                      backgroundColor: SplytPalette.gold,
+                      foregroundColor: Colors.black,
                     ),
                     onPressed: () => context.go('/home'),
                     child: const Text('Back to dashboard'),

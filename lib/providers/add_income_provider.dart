@@ -118,13 +118,17 @@ class AddIncomeController extends Notifier<AddIncomeState> {
 
   void bumpPercent(int id, double delta) => setPercent(id, (state.percents[id] ?? 0) + delta);
 
-  void evenSplit() {
-    if (state.selectedIds.isEmpty) return;
-    final share = (100 / state.selectedIds.length * 10).floor() / 10;
-    final percents = {for (final id in state.selectedIds) id: share};
+  void evenSplit({Iterable<int>? fallbackIds}) {
+    var selected = {...state.selectedIds};
+    if (selected.isEmpty && fallbackIds != null) {
+      selected = fallbackIds.toSet();
+    }
+    if (selected.isEmpty) return;
+    final share = (100 / selected.length * 10).floor() / 10;
+    final percents = {for (final id in selected) id: share};
     final keys = percents.keys.toList();
     percents[keys.last] = 100 - share * (keys.length - 1);
-    state = state.copyWith(percents: percents);
+    state = state.copyWith(selectedIds: selected, percents: percents);
   }
 
   Future<SplitCommit?> confirm() async {

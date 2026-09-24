@@ -17,6 +17,7 @@ class NotificationService {
 
   Future<void> init() async {
     tzdata.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Africa/Accra'));
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const darwin = DarwinInitializationSettings();
     await _plugin.initialize(

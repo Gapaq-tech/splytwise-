@@ -50,6 +50,16 @@ final expensesProvider = StreamProvider((ref) {
   return ref.watch(databaseProvider).watchExpenses();
 });
 
+final allocationsProvider = StreamProvider((ref) {
+  return ref.watch(databaseProvider).watchAllocations();
+});
+
+final monthlyRecapProvider = FutureProvider((ref) {
+  ref.watch(incomesProvider);
+  ref.watch(expensesProvider);
+  return ref.watch(databaseProvider).monthlyRecap(DateTime.now());
+});
+
 final monthExportProvider = Provider((ref) {
   return MonthExportQuery(ref.watch(databaseProvider));
 });

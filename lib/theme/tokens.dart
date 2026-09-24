@@ -1,32 +1,38 @@
 import 'package:flutter/material.dart';
 
 class SplytPalette {
-  static const deep = Color(0xFF061018);
-  static const ink = Color(0xFF0B1A22);
-  static const surface = Color(0xFF12262F);
-  static const surfaceHigh = Color(0xFF1A3340);
-  static const mint = Color(0xFF00E5A8);
-  static const mintDeep = Color(0xFF0B8F6E);
-  static const coral = Color(0xFFFF5A36);
-  static const gold = Color(0xFFFFC857);
-  static const mist = Color(0xFFD7EDE4);
-  static const mute = Color(0xFF7F9A91);
-  static const cream = Color(0xFFF4FBF7);
-  static const lightBg = Color(0xFFECF4F0);
+  static const deep = Color(0xFF0E2B2E);
+  static const deepTeal = Color(0xFF0E2B2E);
+  static const ink = Color(0xFF10262A);
+  static const surface = Color(0xFF14383C);
+  static const tealCard = Color(0xFF14383C);
+  static const surfaceHigh = Color(0xFF1B4A46);
+  static const mint = Color(0xFF1E8E6D);
+  static const mintDeep = Color(0xFF1E8E6D);
+  static const coral = Color(0xFFC05C3B);
+  static const gold = Color(0xFFD9A441);
+  static const goldSoft = Color(0xFFF3DFAF);
+  static const mist = Color(0xFFE9E4D6);
+  static const mute = Color(0xFF6E7C7C);
+  static const cream = Color(0xFFF6F3EC);
+  static const lightBg = Color(0xFFF6F3EC);
   static const lightSurface = Color(0xFFFFFFFF);
-  static const lightInk = Color(0xFF102027);
+  static const lightInk = Color(0xFF10262A);
+  static const line = Color(0xFFE7E2D6);
+  static const greenSoft = Color(0xFFDCEFE6);
+  static const claySoft = Color(0xFFF5E1DA);
 
   static const categorySwatches = <int>[
-    0xFF00E5A8,
-    0xFFFF5A36,
-    0xFF4D9FFF,
-    0xFFFFC857,
-    0xFFB388FF,
-    0xFFFF7AD9,
-    0xFF2EE6D6,
-    0xFFFF8A5B,
-    0xFF7CFFB2,
-    0xFF5B7CFF,
+    0xFF1E8E6D,
+    0xFFC05C3B,
+    0xFF4D7C8A,
+    0xFFD9A441,
+    0xFF7C6B9B,
+    0xFFB76E79,
+    0xFF3C9C91,
+    0xFFB87850,
+    0xFF5E9A73,
+    0xFF5B7C8A,
   ];
 }
 

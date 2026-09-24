@@ -21,9 +21,14 @@ class GlowCard extends StatelessWidget {
     final card = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color ?? Theme.of(context).cardTheme.color ?? SplytPalette.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        color: color ??
+            Theme.of(context).cardTheme.color ??
+            SplytPalette.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: Theme.of(context).brightness == Brightness.light
+                ? SplytPalette.line
+                : Colors.white.withOpacity(0.08)),
       ),
       child: child,
     );
@@ -31,7 +36,7 @@ class GlowCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: card,
       ),
@@ -108,7 +113,8 @@ class PercentStepper extends StatelessWidget {
           color: SplytPalette.mint.withOpacity(0.12),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+        child: Text(label,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
       ),
     );
   }

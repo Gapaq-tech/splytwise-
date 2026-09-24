@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/db/app_database.dart';
 import '../../providers/add_income_provider.dart';
 import '../../providers/app_providers.dart';
-import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../utils/format.dart';
 import '../../widgets/ui_kit.dart';
@@ -16,8 +16,17 @@ class AddIncomeFlow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(addIncomeProvider);
+    ref.listen(addIncomeProvider, (prev, next) {
+      if ((prev?.allocatedPercent ?? 0) < 99.95 &&
+          next.allocatedPercent >= 99.95) {
+        HapticFeedback.mediumImpact();
+      }
+    });
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () {
@@ -25,7 +34,10 @@ class AddIncomeFlow extends ConsumerWidget {
             context.pop();
           },
         ),
-        title: Text(state.step == 0 ? 'New income' : 'Where should it go?'),
+        title: Text(
+          state.step == 0 ? 'New income' : 'Where should it go?',
+          style: const TextStyle(color: Colors.black),
+        ),
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 280),
@@ -43,41 +55,51 @@ class _DetailsStep extends ConsumerWidget {
     final state = ref.watch(addIncomeProvider);
     final user = ref.watch(userProvider).valueOrNull;
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('How much landed?', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text('Source next — salary, momo, side hustle, whatever.',
-              style: TextStyle(color: Colors.white.withOpacity(0.65))),
-          const SizedBox(height: 24),
-          TextField(
+          const Text('How much landed?',
+              style: TextStyle(color: Colors.black, fontSize: 25, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          const Text('Add the source and give this money a clear job.',
+              style: TextStyle(color: Colors.black54)),
+          const SizedBox(height: 22),
+          _IncomeField(
+            label: 'Amount',
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
-            decoration: InputDecoration(
-              prefixText: '${currencySymbol(user?.currency ?? 'GHS')} ',
-              hintText: '0.00',
-              filled: true,
-              fillColor: SplytPalette.surface,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-            ),
+            prefix: '${currencySymbol(user?.currency ?? 'GHS')} ',
+            hint: '0.00',
             onChanged: ref.read(addIncomeProvider.notifier).setAmountFromCedis,
           ),
           const SizedBox(height: 16),
-          TextField(
+          _IncomeField(
+            label: 'Source',
+            hint: 'Salary, MoMo, Freelance',
             textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              hintText: 'Source — e.g. Salary, MoMo, Freelance',
-              filled: true,
-              fillColor: SplytPalette.surface,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-            ),
             onChanged: ref.read(addIncomeProvider.notifier).setSource,
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(dayLabel(state.date ?? DateTime.now()), style: const TextStyle(color: Colors.black)),
+            trailing: const Icon(Icons.event_rounded, color: Colors.black),
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now().add(const Duration(days: 1)),
+                initialDate: state.date ?? DateTime.now(),
+              );
+              if (picked != null) {
+                ref.read(addIncomeProvider.notifier).setDate(picked);
+              }
+            },
           ),
           if (state.error != null) ...[
             const SizedBox(height: 12),
-            Text(state.error!, style: const TextStyle(color: SplytPalette.coral)),
+            Text(state.error!,
+                style: const TextStyle(color: Colors.black)),
           ],
           const Spacer(),
           SizedBox(
@@ -85,15 +107,59 @@ class _DetailsStep extends ConsumerWidget {
             height: 56,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: SplytPalette.mint,
-                foregroundColor: SplytPalette.deep,
+                backgroundColor: SplytPalette.gold,
+                foregroundColor: Colors.black,
+                minimumSize: const Size.fromHeight(52),
               ),
               onPressed: ref.read(addIncomeProvider.notifier).nextFromDetails,
-              child: const Text('Allocate this'),
+              child: const Text('Continue'),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _IncomeField extends StatelessWidget {
+  const _IncomeField({
+    required this.label,
+    this.prefix,
+    this.hint,
+    this.keyboardType,
+    this.textCapitalization,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String? prefix;
+  final String? hint;
+  final TextInputType? keyboardType;
+  final TextCapitalization? textCapitalization;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 5),
+        TextField(
+          keyboardType: keyboardType,
+          textCapitalization: textCapitalization ?? TextCapitalization.none,
+          style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            prefixText: prefix,
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.black38),
+            contentPadding: const EdgeInsets.only(bottom: 8),
+            enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.black26)),
+            focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: SplytPalette.gold, width: 2)),
+          ),
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 }
@@ -108,24 +174,31 @@ class _AllocateStep extends ConsumerWidget {
     final user = ref.watch(userProvider).valueOrNull;
     final currency = user?.currency ?? 'GHS';
     final hit100 = state.allocatedPercent >= 99.95;
-    if (hit100) HapticFeedback.mediumImpact();
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-          child: GlowCard(
-            color: hit100 ? SplytPalette.mint.withOpacity(0.16) : SplytPalette.surfaceHigh,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: SplytPalette.cream,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: SplytPalette.gold.withValues(alpha: 0.55)),
+            ),
             child: Column(
               children: [
-                MoneyText(formatPesewas(state.amountPesewas, currency: currency), fontSize: 28),
+                Text(
+                  formatPesewas(state.amountPesewas, currency: currency),
+                  style: const TextStyle(color: Colors.black, fontSize: 28, fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 8),
                 LinearProgressIndicator(
                   value: (state.allocatedPercent / 100).clamp(0, 1),
                   minHeight: 10,
                   borderRadius: BorderRadius.circular(20),
-                  color: hit100 ? SplytPalette.mint : SplytPalette.coral,
-                  backgroundColor: Colors.white12,
+                  color: SplytPalette.gold,
+                  backgroundColor: Colors.white,
                 ),
                 const SizedBox(height: 10),
                 Row(
@@ -135,8 +208,8 @@ class _AllocateStep extends ConsumerWidget {
                     const Spacer(),
                     Text(
                       '${formatPercent(state.remainderPercent)} Free money',
-                      style: TextStyle(
-                        color: state.remainderPercent > 0 ? SplytPalette.mint : SplytPalette.mute,
+                      style: const TextStyle(
+                        color: Colors.black54,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -146,7 +219,9 @@ class _AllocateStep extends ConsumerWidget {
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
                     child: Text('Locked in — every cedi has a job.',
-                        style: TextStyle(color: SplytPalette.mint, fontWeight: FontWeight.w700)),
+                        style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w700)),
                   ),
               ],
             ),
@@ -162,7 +237,11 @@ class _AllocateStep extends ConsumerWidget {
               ),
               const Spacer(),
               TextButton(
-                onPressed: buckets.isEmpty ? null : ref.read(addIncomeProvider.notifier).evenSplit,
+                onPressed: buckets.isEmpty
+                    ? null
+                    : () => ref.read(addIncomeProvider.notifier).evenSplit(
+                          fallbackIds: buckets.map((b) => b.id),
+                        ),
                 child: const Text('Split evenly'),
               ),
             ],
@@ -170,7 +249,9 @@ class _AllocateStep extends ConsumerWidget {
         ),
         Expanded(
           child: buckets.isEmpty
-              ? const Center(child: Text('Add a category or goal first — or send it all to Free money.'))
+              ? const Center(
+                  child: Text(
+                      'Add a category or goal first — or send it all to Free money.'))
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   itemCount: buckets.length,
@@ -179,34 +260,55 @@ class _AllocateStep extends ConsumerWidget {
                     final selected = state.selectedIds.contains(cat.id);
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: GlowCard(
-                        color: selected ? Color(cat.color).withOpacity(0.12) : null,
+                      child: InkWell(
                         onTap: () => ref.read(addIncomeProvider.notifier).toggleCategory(cat.id),
+                        borderRadius: BorderRadius.circular(12),
                         child: Column(
                           children: [
-                            Row(
-                              children: [
-                                GlyphBadge(iconKey: cat.icon, color: Color(cat.color)),
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: selected ? SplytPalette.goldSoft : Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: selected ? SplytPalette.gold : Colors.black12),
+                              ),
+                              child: Row(
+                                children: [
+                                Icon(
+                                    cat.systemKey == freeMoneyKey
+                                        ? Icons.account_balance_wallet_outlined
+                                        : iconForKey(cat.icon),
+                                    color: Colors.black,
+                                    size: 24),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(cat.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                        Text(cat.systemKey == freeMoneyKey ? 'Free money' : cat.name,
+                                          style: const TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.w700)),
                                       Text(
                                         cat.isGoal
                                             ? 'Goal · ${formatPesewas(cat.currentAmount, currency: currency)} / ${formatPesewas(cat.targetAmount ?? 0, currency: currency)}'
                                             : 'Category',
-                                        style: const TextStyle(color: SplytPalette.mute, fontSize: 12),
+                                        style: const TextStyle(
+                                            color: Colors.black54,
+                                            fontSize: 12),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Icon(
-                                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                                  color: selected ? SplytPalette.mint : SplytPalette.mute,
+                                  selected
+                                      ? Icons.check_circle_rounded
+                                      : Icons.circle_outlined,
+                                  color: selected ? Colors.black : Colors.black54,
                                 ),
-                              ],
+                                ],
+                              ),
                             ),
                             if (selected) ...[
                               const SizedBox(height: 8),
@@ -214,12 +316,17 @@ class _AllocateStep extends ConsumerWidget {
                                 alignment: Alignment.centerLeft,
                                 child: Text(
                                   formatPercent(state.percents[cat.id] ?? 0),
-                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                                  style: const TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 18),
                                 ),
                               ),
                               PercentStepper(
                                 value: state.percents[cat.id] ?? 0,
-                                onChanged: (v) => ref.read(addIncomeProvider.notifier).setPercent(cat.id, v),
+                                onChanged: (v) => ref
+                                    .read(addIncomeProvider.notifier)
+                                    .setPercent(cat.id, v),
                               ),
                             ],
                           ],
@@ -232,7 +339,8 @@ class _AllocateStep extends ConsumerWidget {
         if (state.error != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(state.error!, style: const TextStyle(color: SplytPalette.coral)),
+            child: Text(state.error!,
+              style: const TextStyle(color: Colors.black)),
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -241,21 +349,25 @@ class _AllocateStep extends ConsumerWidget {
             height: 56,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: SplytPalette.mint,
-                foregroundColor: SplytPalette.deep,
+                backgroundColor: SplytPalette.gold,
+                foregroundColor: Colors.black,
               ),
               onPressed: state.submitting
                   ? null
                   : () async {
-                      final commit = await ref.read(addIncomeProvider.notifier).confirm();
+                      final commit =
+                          await ref.read(addIncomeProvider.notifier).confirm();
                       if (commit != null && context.mounted) {
                         ref.read(addIncomeProvider.notifier).reset();
-                        context.pushReplacement('/income/result', extra: commit);
+                        context.pushReplacement('/income/result',
+                            extra: commit);
                       }
                     },
               child: state.submitting
                   ? const CircularProgressIndicator()
-                  : Text(state.remainderPercent > 0 ? 'Confirm · remainder is Free money' : 'Confirm split'),
+                  : Text(state.remainderPercent > 0
+                      ? 'Confirm · remainder is Free money'
+                      : 'Confirm split'),
             ),
           ),
         ),

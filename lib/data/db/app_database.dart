@@ -5,7 +5,6 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../theme/tokens.dart';
 import '../../utils/money.dart';
 import 'tables.dart';
 
@@ -13,14 +12,15 @@ part 'app_database.g.dart';
 
 const freeMoneyKey = 'free_money';
 
-@DriftDatabase(tables: [Users, Categories, Incomes, Allocations, Expenses, AppSettings])
+@DriftDatabase(
+    tables: [Users, Categories, Incomes, Allocations, Expenses, AppSettings])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
 
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,6 +42,11 @@ class AppDatabase extends _$AppDatabase {
             'CREATE INDEX IF NOT EXISTS idx_incomes_date ON incomes(date);',
           );
         },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(users, users.profileImagePath);
+          }
+        },
       );
 
   Future<void> ensureSeeded() async {
@@ -54,7 +59,7 @@ class AppDatabase extends _$AppDatabase {
       await into(categories).insert(
         CategoriesCompanion.insert(
           name: 'Free money',
-          color: SplytPalette.mint.value,
+          color: 0xFF1E8E6D,
           icon: 'wallet',
           isSystem: const Value(true),
           systemKey: const Value(freeMoneyKey),
@@ -78,14 +83,36 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<AppSetting> watchSettings() {
-    return (select(appSettings)..limit(1)).watchSingle();
+    return (select(appSettings)..limit(1)).watchSingleOrNull().asyncMap((row) async {
+      if (row == null) {
+        await ensureSeeded();
+        final seeded = await (select(appSettings)..limit(1)).getSingleOrNull();
+        if (seeded == null) {
+          throw StateError('App settings could not be created.');
+        }
+        return seeded;
+      }
+      return row;
+    });
   }
 
-  Future<AppSetting> settings() => (select(appSettings)..limit(1)).getSingle();
+  Future<AppSetting> settings() async {
+    final row = await (select(appSettings)..limit(1)).getSingleOrNull();
+    if (row == null) {
+      await ensureSeeded();
+      final seeded = await (select(appSettings)..limit(1)).getSingleOrNull();
+      if (seeded == null) {
+        throw StateError('App settings could not be created.');
+      }
+      return seeded;
+    }
+    return row;
+  }
 
   Future<void> updateSettings(AppSettingsCompanion data) async {
     final current = await settings();
-    await (update(appSettings)..where((s) => s.id.equals(current.id))).write(data);
+    await (update(appSettings)..where((s) => s.id.equals(current.id)))
+        .write(data);
   }
 
   Stream<List<Category>> watchSpendCategories() {
@@ -119,14 +146,18 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<Category>> watchAllBuckets() {
-    return (select(categories)..orderBy([(c) => OrderingTerm.asc(c.name)])).watch();
+    return (select(categories)..orderBy([(c) => OrderingTerm.asc(c.name)]))
+        .watch();
   }
+
+  Stream<List<Allocation>> watchAllocations() => select(allocations).watch();
 
   Future<Category> categoryById(int id) {
     return (select(categories)..where((c) => c.id.equals(id))).getSingle();
   }
 
-  Future<void> updateCategoryLook(int id, {int? color, String? icon, bool? protected}) {
+  Future<void> updateCategoryLook(int id,
+      {int? color, String? icon, bool? protected}) {
     return (update(categories)..where((c) => c.id.equals(id))).write(
       CategoriesCompanion(
         color: color == null ? const Value.absent() : Value(color),
@@ -174,7 +205,26 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deleteCategoryIfAllowed(int id) async {
     final cat = await categoryById(id);
     if (cat.isSystem) return;
-    await (delete(categories)..where((c) => c.id.equals(id))).go();
+    try {
+      await (delete(categories)..where((c) => c.id.equals(id))).go();
+    } catch (_) {
+      // Keep the bucket if income/expense history still points at it.
+    }
+  }
+
+  Future<void> updateProfile(
+      {String? name, String? currency, String? profileImagePath}) async {
+    final existing = await currentUser();
+    if (existing == null) return;
+    await (update(users)..where((u) => u.id.equals(existing.id))).write(
+      UsersCompanion(
+        name: name == null ? const Value.absent() : Value(name),
+        currency: currency == null ? const Value.absent() : Value(currency),
+        profileImagePath: profileImagePath == null
+            ? const Value.absent()
+            : Value(profileImagePath),
+      ),
+    );
   }
 
   Future<User?> currentUser() {
@@ -218,7 +268,8 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  Future<({int incomeId, List<int> completedGoalIds})> addIncomeWithAllocations({
+  Future<({int incomeId, List<int> completedGoalIds})>
+      addIncomeWithAllocations({
     required int amountPesewas,
     required String source,
     required DateTime date,
@@ -285,7 +336,8 @@ class AppDatabase extends _$AppDatabase {
       );
       final cat = await categoryById(bucketId);
       await (update(categories)..where((c) => c.id.equals(bucketId))).write(
-        CategoriesCompanion(currentAmount: Value(cat.currentAmount - amountPesewas)),
+        CategoriesCompanion(
+            currentAmount: Value(cat.currentAmount - amountPesewas)),
       );
       return id;
     });
@@ -300,25 +352,32 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<Income>> watchIncomes() {
-    return (select(incomes)..orderBy([(i) => OrderingTerm.desc(i.date)])).watch();
+    return (select(incomes)..orderBy([(i) => OrderingTerm.desc(i.date)]))
+        .watch();
   }
 
   Stream<List<Expense>> watchExpenses() {
-    return (select(expenses)..orderBy([(e) => OrderingTerm.desc(e.date)])).watch();
+    return (select(expenses)..orderBy([(e) => OrderingTerm.desc(e.date)]))
+        .watch();
   }
 
   Future<List<Allocation>> allocationsForIncome(int incomeId) {
-    return (select(allocations)..where((a) => a.incomeId.equals(incomeId))).get();
+    return (select(allocations)..where((a) => a.incomeId.equals(incomeId)))
+        .get();
   }
 
   Future<List<MonthExportRow>> monthExport(DateTime month) async {
     final start = DateTime(month.year, month.month, 1);
     final end = DateTime(month.year, month.month + 1, 1);
     final incomeRows = await (select(incomes)
-          ..where((i) => i.date.isBiggerOrEqualValue(start) & i.date.isSmallerThanValue(end)))
+          ..where((i) =>
+              i.date.isBiggerOrEqualValue(start) &
+              i.date.isSmallerThanValue(end)))
         .get();
     final expenseRows = await (select(expenses)
-          ..where((e) => e.date.isBiggerOrEqualValue(start) & e.date.isSmallerThanValue(end)))
+          ..where((e) =>
+              e.date.isBiggerOrEqualValue(start) &
+              e.date.isSmallerThanValue(end)))
         .get();
     final cats = {for (final c in await select(categories).get()) c.id: c};
 
@@ -356,10 +415,14 @@ class AppDatabase extends _$AppDatabase {
     final start = DateTime(month.year, month.month, 1);
     final end = DateTime(month.year, month.month + 1, 1);
     final incomeRows = await (select(incomes)
-          ..where((i) => i.date.isBiggerOrEqualValue(start) & i.date.isSmallerThanValue(end)))
+          ..where((i) =>
+              i.date.isBiggerOrEqualValue(start) &
+              i.date.isSmallerThanValue(end)))
         .get();
     final expenseRows = await (select(expenses)
-          ..where((e) => e.date.isBiggerOrEqualValue(start) & e.date.isSmallerThanValue(end)))
+          ..where((e) =>
+              e.date.isBiggerOrEqualValue(start) &
+              e.date.isSmallerThanValue(end)))
         .get();
     final cats = {for (final c in await select(categories).get()) c.id: c};
     var saved = 0;

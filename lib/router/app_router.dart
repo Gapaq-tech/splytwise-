@@ -14,7 +14,7 @@ import '../features/income/split_result_screen.dart';
 import '../features/lock/pin_lock_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/recap/monthly_recap_screen.dart';
-import '../features/settings/settings_screen.dart';
+import '../features/settings/settings_page.dart';
 import '../features/shell/app_shell.dart';
 import '../features/splash/splash_screen.dart';
 import '../providers/add_income_provider.dart';
@@ -23,10 +23,21 @@ import '../providers/app_providers.dart';
 final _rootKey = GlobalKey<NavigatorState>();
 final unlockedProvider = StateProvider<bool>((ref) => false);
 
+class _RouterRefresh extends ChangeNotifier {
+  void ping() => notifyListeners();
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
+  final refresh = _RouterRefresh();
+  ref.onDispose(refresh.dispose);
+  ref.listen(appBootstrapProvider, (_, __) => refresh.ping());
+  ref.listen(settingsProvider, (_, __) => refresh.ping());
+  ref.listen(unlockedProvider, (_, __) => refresh.ping());
+
   return GoRouter(
     navigatorKey: _rootKey,
     initialLocation: '/splash',
+    refreshListenable: refresh,
     routes: [
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
@@ -62,21 +73,39 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/goals/new', builder: (context, state) => const EditGoalScreen()),
       GoRoute(path: '/recap', builder: (context, state) => const MonthlyRecapScreen()),
-      GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
+      GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
     ],
     redirect: (context, state) {
-      final boot = ref.read(appBootstrapProvider);
-      if (boot.isLoading) return state.matchedLocation == '/splash' ? null : '/splash';
-      final settings = ref.read(settingsProvider).valueOrNull;
-      if (settings == null) return '/splash';
       final loc = state.matchedLocation;
+      final boot = ref.read(appBootstrapProvider);
+      if (boot.isLoading || boot.hasError) {
+        if (loc == '/splash' || loc == '/lock' || loc == '/settings' || loc == '/onboarding') {
+          return null;
+        }
+        return '/splash';
+      }
+
+      final settings = ref.read(settingsProvider).valueOrNull;
+      if (settings == null) {
+        if (loc == '/splash' || loc == '/settings' || loc == '/lock' || loc == '/onboarding') {
+          return null;
+        }
+        return '/splash';
+      }
+
       if (!settings.onboardingComplete && loc != '/onboarding') return '/onboarding';
       if (settings.onboardingComplete && loc == '/onboarding') return '/home';
       if (settings.pinEnabled &&
           !ref.read(unlockedProvider) &&
           loc != '/lock' &&
           loc != '/splash' &&
-          loc != '/onboarding') {
+          loc != '/onboarding' &&
+          // Settings must always be reachable — it's the only screen that can
+          // turn PIN lock off. Without this exemption, a broken or forgotten
+          // PIN permanently locks the person out of the one screen that can
+          // fix it, and any issue on the lock screen itself then looks
+          // exactly like "Settings is blank" from the outside.
+          loc != '/settings') {
         return '/lock';
       }
       return null;

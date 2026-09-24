@@ -5,7 +5,7 @@ import 'money.dart';
 String currencySymbol(String code) {
   switch (code) {
     case 'GHS':
-      return 'GH₵';
+      return 'GHS ';
     case 'USD':
       return '\$';
     case 'EUR':
